@@ -1,8 +1,12 @@
-# ffcgi-client
-fastcgi client的go实现，just for learn
+package client
 
+import (
+	"fmt"
+	"net/url"
+	"testing"
+)
 
-```
+func Test(t *testing.T) {
 	v := url.Values{}
 	v.Set("mail_id", "10086")
 	v.Set("mail_name", "suilz")
@@ -19,8 +23,8 @@ fastcgi client的go实现，just for learn
 	env["SERVER_PROTOCOL"] = "HTTP/1.1"
 	env["REQUEST_URI"] = "/"
 	env["QUERY_STRING"] = reqParams
-	fcgi, err := client.NewClient("192.168.100.7:9000") //PHP-FPM
-	// fcgi, err := client.NewClient("127.0.0.1:9001") //golang fcgi server
+	fcgi, err := NewClient("192.168.100.7:9000") //PHP-FPM
+	// fcgi, err := NewClient("127.0.0.1:9001") //golang fcgi server
 	if err != nil {
 		fmt.Printf("err: %v", err)
 	}
@@ -33,4 +37,4 @@ fastcgi client的go实现，just for learn
 	}
 	fmt.Printf("retout: %s", retout)
 	fmt.Printf("reterr: %s", reterr)
-```
+}
