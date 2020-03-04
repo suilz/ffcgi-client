@@ -1,20 +1,14 @@
-# ffcgi-client
-fastcgi client的go实现，just for learn
-
-
-```
-package main
+package ffcgiclient
 
 import (
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
-	ffcgiclient "suilz/ffcgi-client"
+	"testing"
 	"time"
 )
 
-func main() {
+func TestClient(t *testing.T) {
 	// 获取fastcgi应用程序服务器tcp地址
 	address := os.Getenv("FASTCGI_ADDR")
 	if address == "" {
@@ -24,7 +18,7 @@ func main() {
 	}
 	yourPHPDocRoot := "/home/vagrant/code/php_test"
 	// 根据地址生成conn工厂
-	connFactory := ffcgiclient.SimpleConnFactory("tcp", address)
+	connFactory := SimpleConnFactory("tcp", address)
 
 	// 静态资源处理
 	http.Handle("/assets/",
@@ -38,21 +32,21 @@ func main() {
 			http.FileServer(http.Dir("/Users/seven/Works/golang/assets"))))
 
 	// Pool
-	pool := ffcgiclient.NewClientPool(
-		ffcgiclient.SimpleClientFactoryNoConn(connFactory, 0),
+	pool := NewClientPool(
+		SimpleClientFactoryNoConn(connFactory, 0),
 		10,             // 通道缓冲数量，即预创建client的数量
 		30*time.Second, // client存活时间
 	)
 	// 连接池模式
-	http.Handle("/pool/", ffcgiclient.NewHandler(
-		ffcgiclient.NewPHPFS(yourPHPDocRoot)(ffcgiclient.BasicHandler),
+	http.Handle("/pool/", NewHandler(
+		NewPHPFS(yourPHPDocRoot)(BasicHandler),
 		pool.CreateClient,
 	))
 
 	// 普通模式
-	http.Handle("/normal/", ffcgiclient.NewHandler(
-		ffcgiclient.NewPHPFS(yourPHPDocRoot)(ffcgiclient.BasicHandler),
-		ffcgiclient.SimpleClientFactory(connFactory, 0),
+	http.Handle("/normal/", NewHandler(
+		NewPHPFS(yourPHPDocRoot)(BasicHandler),
+		SimpleClientFactory(connFactory, 0),
 	))
 
 	// serve at 8080 port
@@ -61,4 +55,9 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-```
+func TestHttpHandle(t *testing.T) {
+	// http.Handle("/", gofast.NewHandler(
+	// 	gofast.NewPHPFS("/var/www/html")(gofast.BasicSession),
+	// 	gofast.SimpleClientFactory(connFactory, 0),
+	// ))
+}

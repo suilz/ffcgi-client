@@ -1,15 +1,16 @@
-package client
+package ffcgiclient
 
 import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
-	"net"
 	"sync"
 )
 
+// 此文件是fastcgi协议的基本实现
 // -------------------1.参数设定-------------------
 
 // 最大值定义
@@ -114,6 +115,7 @@ type record struct {
 func (rec *record) read(r io.Reader) (err error) {
 	// 从io.Reader中获取header，binary.BigEndian只会读取指定参数的固定长度值，此处为8字节（header）
 	if err = binary.Read(r, binary.BigEndian, &rec.h); err != nil {
+		fmt.Println(err.Error())
 		return err
 	}
 	// 检验版本
@@ -163,6 +165,8 @@ func (c *conn) Close() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	// 调用底层关闭函数
+	// 测试
+	// fmt.Println("【conn.Close】释放rwc")
 	return c.rwc.Close()
 }
 
@@ -386,90 +390,90 @@ func encodeSize(b []byte, size uint32) int {
 
 // -------------------9.调用方法-------------------
 
-// Client Client define
-type Client struct {
-	conn *conn
-}
+// // Client Client define
+// type Client struct {
+// 	conn *conn
+// }
 
-// Close 关闭客户端
-// Close implements Client.Close
-// If the inner connection has been closed before,
-// this method would do nothing and return nil
-func (c *Client) Close() (err error) {
-	if c.conn == nil {
-		return
-	}
-	err = c.conn.Close()
-	c.conn = nil
-	return
-}
+// // Close 关闭客户端
+// // Close implements Client.Close
+// // If the inner connection has been closed before,
+// // this method would do nothing and return nil
+// func (c *Client) Close() (err error) {
+// 	if c.conn == nil {
+// 		return
+// 	}
+// 	err = c.conn.Close()
+// 	c.conn = nil
+// 	return
+// }
 
-// NewClient 新建一个Client
-func NewClient(address string) (c *Client, err error) {
-	// 定义一个网络连接
-	netconn, err := net.Dial("tcp", address)
-	// 包装为Client
-	c = &Client{
-		conn: &conn{
-			rwc: netconn,
-		},
-	}
-	return
-}
+// // NewClient 新建一个Client
+// func NewClient(address string) (c *Client, err error) {
+// 	// 定义一个网络连接
+// 	netconn, err := net.Dial("tcp", address)
+// 	// 包装为Client
+// 	c = &Client{
+// 		conn: &conn{
+// 			rwc: netconn,
+// 		},
+// 	}
+// 	return
+// }
 
-// Request 请求方法
-func (c *Client) Request(paramsMap map[string]string, reqStr string) (retout []byte, reterr []byte, err error) {
+// // Request 请求方法
+// func (c *Client) Request(paramsMap map[string]string, reqStr string) (retout []byte, reterr []byte, err error) {
 
-	// 指定请求ID
-	var reqID uint16 = 1
-	defer c.Close()
+// 	// 指定请求ID
+// 	var reqID uint16 = 1
+// 	defer c.Close()
 
-	// 不保持连接，keepalive逻辑还没有处理
-	var keepalive uint8
-	// 发起一个开始消息
-	err = c.conn.writeBeginRequest(reqID, roleResponder, keepalive)
-	if err != nil {
-		return
-	}
-	// 发送键值对
-	err = c.conn.writePairs(typeParams, reqID, paramsMap)
-	if err != nil {
-		return
-	}
-	// 是否需要发送请求数据
-	if len(reqStr) > 0 {
-		err = c.conn.writeRecord(typeStdin, reqID, []byte(reqStr))
-		if err != nil {
-			return
-		}
-	}
+// 	// 不保持连接，keepalive逻辑还没有处理
+// 	var keepalive uint8
+// 	// 发起一个开始消息
+// 	err = c.conn.writeBeginRequest(reqID, roleResponder, keepalive)
+// 	if err != nil {
+// 		return
+// 	}
+// 	// 发送键值对
+// 	err = c.conn.writePairs(typeParams, reqID, paramsMap)
+// 	if err != nil {
+// 		return
+// 	}
+// 	// 是否需要发送请求数据
+// 	if len(reqStr) > 0 {
+// 		err = c.conn.writeRecord(typeStdin, reqID, []byte(reqStr))
+// 		if err != nil {
+// 			return
+// 		}
+// 	}
 
-	// 处理接收的数据
-	// 构造一个空消息
-	rec := &record{}
-	var err1 error
+// 	// 处理接收的数据
+// 	// 构造一个空消息
+// 	rec := &record{}
+// 	var err1 error
 
-readLoop:
-	// recive untill EOF or FCGI_END_REQUEST
-	for {
-		err1 = rec.read(c.conn.rwc)
-		if err1 != nil {
-			if err1 != io.EOF {
-				err = err1
-			}
-			break
-		}
-		switch {
-		case rec.h.Type == typeStdout:
-			retout = append(retout, rec.content()...)
-		case rec.h.Type == typeStderr:
-			reterr = append(reterr, rec.content()...)
-		case rec.h.Type == typeEndRequest:
-			break readLoop
-		default:
-			break
-		}
-	}
+// readLoop:
+// 	// recive untill EOF or FCGI_END_REQUEST
+// 	for {
+// 		err1 = rec.read(c.conn.rwc)
+// 		if err1 != nil {
+// 			if err1 != io.EOF {
+// 				err = err1
+// 			}
+// 			break
+// 		}
+// 		switch {
+// 		case rec.h.Type == typeStdout:
+// 			retout = append(retout, rec.content()...)
+// 		case rec.h.Type == typeStderr:
+// 			reterr = append(reterr, rec.content()...)
+// 		case rec.h.Type == typeEndRequest:
+// 			break readLoop
+// 		default:
+// 			break
+// 		}
+// 	}
 
-	return
-}
+// 	return
+// }
